@@ -2,7 +2,7 @@ from config import *
 import numpy as np
 
 import torch
-from torch._six import inf
+from torch import inf
 
 # if default_config['TrainMethod'] in ['PPO', 'ICM', 'RND']:
 #     num_step = int(ppo_config['NumStep'])
