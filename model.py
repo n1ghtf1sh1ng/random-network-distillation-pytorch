@@ -5,6 +5,7 @@ import torch.optim as optim
 import numpy as np
 import math
 from torch.nn import init
+from capsule_network import Conv1, PrimaryCaps, LinearCaps
 
 
 class NoisyLinear(nn.Module):
@@ -165,26 +166,11 @@ class RNDModel(nn.Module):
         self.input_size = input_size
         self.output_size = output_size
 
-        feature_output = 7 * 7 * 64
+        feature_output = 8 * 16
         self.predictor = nn.Sequential(
-            nn.Conv2d(
-                in_channels=1,
-                out_channels=32,
-                kernel_size=8,
-                stride=4),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=32,
-                out_channels=64,
-                kernel_size=4,
-                stride=2),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=64,
-                out_channels=64,
-                kernel_size=3,
-                stride=1),
-            nn.LeakyReLU(),
+            Conv1(),
+            PrimaryCaps(),
+            LinearCaps(),
             Flatten(),
             nn.Linear(feature_output, 512),
             nn.ReLU(),
@@ -194,24 +180,9 @@ class RNDModel(nn.Module):
         )
 
         self.target = nn.Sequential(
-            nn.Conv2d(
-                in_channels=1,
-                out_channels=32,
-                kernel_size=8,
-                stride=4),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=32,
-                out_channels=64,
-                kernel_size=4,
-                stride=2),
-            nn.LeakyReLU(),
-            nn.Conv2d(
-                in_channels=64,
-                out_channels=64,
-                kernel_size=3,
-                stride=1),
-            nn.LeakyReLU(),
+            Conv1(),
+            PrimaryCaps(),
+            LinearCaps(),
             Flatten(),
             nn.Linear(feature_output, 512)
         )
