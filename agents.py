@@ -9,6 +9,7 @@ from torch.distributions.categorical import Categorical
 
 from model import CnnActorCriticNetwork, RNDModel
 from utils import global_grad_norm_
+import deepspeed
 
 
 class RNDAgent(object):
@@ -30,7 +31,6 @@ class RNDAgent(object):
             use_gae=True,
             use_cuda=False,
             use_noisy_net=False):
-        self.model = CnnActorCriticNetwork(input_size, output_size, use_noisy_net)
         self.num_env = num_env
         self.output_size = output_size
         self.input_size = input_size
@@ -46,12 +46,31 @@ class RNDAgent(object):
         self.update_proportion = update_proportion
         self.device = torch.device('cuda' if use_cuda else 'cpu')
 
+        ds_config = {
+          "train_micro_batch_size_per_gpu": batch_size,
+          "optimizer": {
+            "type": "Adam",
+            "params": {
+                "lr": learning_rate
+            }
+          },
+          "zero_optimization": {
+            "stage": 0,
+            "offload_optimizer": {
+                "device": "cpu"
+            }
+          }
+        }
+        self.model = CnnActorCriticNetwork(input_size, output_size, use_noisy_net)
+        self.model, _, _, _ = deepspeed.initialize(model=self.model,
+                                          model_parameters=self.model.parameters(),
+                                          config=ds_config)
         self.rnd = RNDModel(input_size, output_size)
+        self.rnd, _, _, _ = deepspeed.initialize(model=self.rnd,
+                                        model_parameters=self.rnd.parameters(),
+                                        config=ds_config)
         self.optimizer = optim.Adam(list(self.model.parameters()) + list(self.rnd.predictor.parameters()),
                                     lr=learning_rate)
-        self.rnd = self.rnd.to(self.device)
-
-        self.model = self.model.to(self.device)
 
     def get_action(self, state):
         state = torch.Tensor(state).to(self.device)
@@ -84,6 +103,8 @@ class RNDAgent(object):
         y_batch = torch.LongTensor(y_batch).to(self.device)
         adv_batch = torch.FloatTensor(adv_batch).to(self.device)
         next_obs_batch = torch.FloatTensor(next_obs_batch).to(self.device)
+
+        deepspeed.init_distributed()
 
         sample_range = np.arange(len(s_batch))
         forward_mse = nn.MSELoss(reduction='none')
@@ -132,8 +153,7 @@ class RNDAgent(object):
 
                 entropy = m.entropy().mean()
 
-                self.optimizer.zero_grad()
                 loss = actor_loss + 0.5 * critic_loss - self.ent_coef * entropy + forward_loss
-                loss.backward()
+                self.model.backward(loss)
                 global_grad_norm_(list(self.model.parameters())+list(self.rnd.predictor.parameters()))
-                self.optimizer.step()
+                self.model.step()
