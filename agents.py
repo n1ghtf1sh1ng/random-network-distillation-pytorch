@@ -48,10 +48,12 @@ class RNDAgent(object):
 
         self.model = CnnActorCriticNetwork(input_size, output_size, use_noisy_net)
         self.model, _, _, _ = deepspeed.initialize(model=self.model,
-                                          model_parameters=self.model.parameters())
+                                          model_parameters=self.model.parameters(),
+                                          config=ds_config)
         self.rnd = RNDModel(input_size, output_size)
         self.rnd, _, _, _ = deepspeed.initialize(model=self.rnd,
-                                        model_parameters=self.rnd.parameters())
+                                        model_parameters=self.rnd.parameters(),
+                                        config=ds_config)
         self.optimizer = optim.Adam(list(self.model.parameters()) + list(self.rnd.predictor.parameters()),
                                     lr=learning_rate)
         ds_config = {
