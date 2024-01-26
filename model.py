@@ -6,6 +6,7 @@ import numpy as np
 import math
 from torch.nn import init
 from capsule_network import Conv1, PrimaryCaps, LinearCaps
+import deepspeed
 
 
 class NoisyLinear(nn.Module):
@@ -160,11 +161,12 @@ class CnnActorCriticNetwork(nn.Module):
 
 
 class RNDModel(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, ds_config):
         super(RNDModel, self).__init__()
 
         self.input_size = input_size
         self.output_size = output_size
+        self.ds_config = ds_config
 
         feature_output = 8 * 16
         self.predictor = nn.Sequential(
@@ -200,7 +202,13 @@ class RNDModel(nn.Module):
             param.requires_grad = False
 
     def forward(self, next_obs):
-        target_feature = self.target(next_obs)
-        predict_feature = self.predictor(next_obs)
+        target_model = self.target(next_obs)
+        target_feature = deepspeed.initialize(model=target_model,
+                             model_parameters=target_model.parameter(),
+                             config=self.ds_config)
+        predict_model = self.predictor(next_obs)
+        predict_feature = deepspeed.initialize(model=predict_model,
+                             model_parameters=predict_model.parameter(),
+                             config=self.ds_config)
 
         return predict_feature, target_feature

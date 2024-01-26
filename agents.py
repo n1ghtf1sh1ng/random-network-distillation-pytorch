@@ -65,7 +65,7 @@ class RNDAgent(object):
         self.model, _, _, _ = deepspeed.initialize(model=self.model,
                                           model_parameters=self.model.parameters(),
                                           config=ds_config)
-        self.rnd = RNDModel(input_size, output_size)
+        self.rnd = RNDModel(input_size, output_size, ds_config)
         self.rnd, _, _, _ = deepspeed.initialize(model=self.rnd,
                                         model_parameters=self.rnd.parameters(),
                                         config=ds_config)
