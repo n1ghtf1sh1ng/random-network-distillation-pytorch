@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import torch.nn.functional as F
+from deepspeed.accelerator import get_accelerator
 
 
 def squash(s, dim):
@@ -115,7 +116,6 @@ class LinearCaps(nn.Module):
   def __init__(self, routing_iters=3):
     super(LinearCaps, self).__init__()
 
-    self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     self.routing_iters = routing_iters
 
     self.in_capsules = 2401
@@ -162,7 +162,8 @@ class LinearCaps(nn.Module):
 
     # Initialize routing logits to zero.
     b_ij = Variable(torch.zeros(self.in_capsules, self.out_capsules, 1))
-    b_ij = b_ij.to(self.device)
+    b_ij = b_ij.to(get_accelerator().current_device_name())
+
     # b_ij: [in_capsules=2401, out_capsules=8, 1]
 
     # Iterative routing.

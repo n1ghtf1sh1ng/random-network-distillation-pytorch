@@ -47,7 +47,8 @@ class RNDAgent(object):
         self.device = torch.device('cuda' if use_cuda else 'cpu')
 
         ds_config = {
-          "train_micro_batch_size_per_gpu": batch_size,
+          "batch_size": batch_size,
+          "train_micro_batch_size_per_gpu": batch_size//2,
           "optimizer": {
             "type": "Adam",
             "params": {
@@ -55,12 +56,24 @@ class RNDAgent(object):
             }
           },
           "zero_optimization": {
-            "stage": 0,
+            "stage": 3,
             "offload_optimizer": {
-                "device": "cpu"
-            }
+                "device": "cpu",
+                "pin_memory": True,
+            },
+            "contiguous_gradients": True,
+            "overlap_comm": True,
+            "offload_param": {
+                "device": "cpu",
+                "pin_memory": True,
+            },
+            "zero_hpz_partition_size": 2,
+            "zero_quantized_weights": True,
+            "zero_quantized_gradients": True,
+            "reduce_bucket_size": 1e8
           }
         }
+
         self.model = CnnActorCriticNetwork(input_size, output_size, use_noisy_net)
         self.model, _, _, _ = deepspeed.initialize(model=self.model,
                                           model_parameters=self.model.parameters(),
