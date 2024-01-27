@@ -68,9 +68,8 @@ class RNDAgent(object):
                 "pin_memory": True,
             },
             "zero_hpz_partition_size": 2,
-            "zero_quantized_weights": True,
-            "zero_quantized_gradients": True,
-            "reduce_bucket_size": 1e8
+            "zero_quantized_weights": False,
+            "zero_quantized_gradients": False,
           }
         }
 
